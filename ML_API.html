@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Classification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        input {
+            padding: 10px;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            display: none;
+            font-size: 14px;
+            color: gray;
+        }
+        .error {
+            color: red;
+        }
+        #preview {
+            margin-top: 20px;
+            max-width: 300px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>AI 이미지 분류</h2>
+    <p>이미지를 업로드하면 Azure ML 모델이 분류합니다.</p>
+    
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="sendRequest()">Predict</button>
+    
+    <p class="loading" id="loadingText">예측 중...</p>
+    <img id="preview" src="" alt="Image Preview">
+    <p>결과: <span id="result"></span></p>
+    <p class="error" id="errorText"></p>
+
+    <script>
+        async function sendRequest() {
+            let fileInput = document.getElementById("imageInput");
+            let resultElement = document.getElementById("result");
+            let errorElement = document.getElementById("errorText");
+            let loadingText = document.getElementById("loadingText");
+            let previewImage = document.getElementById("preview");
+
+            // 결과 및 오류 메시지 초기화
+            resultElement.innerText = "";
+            errorElement.innerText = "";
+            loadingText.style.display = "block";
+            previewImage.style.display = "none";
+
+            if (fileInput.files.length === 0) {
+                errorElement.innerText = "이미지를 선택하세요.";
+                loadingText.style.display = "none";
+                return;
+            }
+
+            let file = fileInput.files[0];
+
+            // 파일을 Base64로 변환
+            let reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async function () {
+                let base64Image = reader.result.split(",")[1]; // Base64 데이터만 추출
+                previewImage.src = reader.result; // 이미지 미리보기
+                previewImage.style.display = "block";
+
+                let data = { image: base64Image };
+
+                try {
+                    let response = await fetch("https://zb017-azureml2-0203-floqy.koreacentral.inference.ml.azure.com/score", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer 8OHMfeCg4WoN3o23SI7wllxQm6rLOJQ7Xh6Qja9QVL2VeXCJWBczJQQJ99BBAAAAAAAAAAAAINFRAZMLQ2YK",
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API 오류: ${response.statusText}`);
+                    }
+
+                    let result = await response.json();
+                    resultElement.innerText = result.prediction || "예측 결과 없음";
+                } catch (error) {
+                    errorElement.innerText = "API 요청 중 오류 발생: " + error.message;
+                } finally {
+                    loadingText.style.display = "none";
+                }
+            };
+
+            reader.onerror = function () {
+                errorElement.innerText = "이미지를 읽는 중 오류가 발생했습니다.";
+                loadingText.style.display = "none";
+            };
+        }
+    </script>
+</body>
+</html>
